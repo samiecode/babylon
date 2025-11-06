@@ -15,21 +15,130 @@ datasource db {
 }
 
 model User {
-  id    Int     @id @default(autoincrement())
-  email String  @unique
-  name  String?
+  id                      Int                   @id @default(autoincrement())
+  email                   String                @unique
+  name                    String?
+  savingPercentBps        Int                   @default(0)
+  withdrawalDelaySeconds  Int                   @default(86400)
+  createdAt               DateTime              @default(now())
+  updatedAt               DateTime              @updatedAt
 
-  wallets Wallet[]
+  wallets                 Wallet[]
+  transactions            IncomingTransaction[]
+  ledgerEntries           SavingsLedger[]
+  withdrawals             WithdrawalRequest[]
 }
 
 model Wallet {
-  id        Int      @id @default(autoincrement())
-  address   String   @unique
-  label     String?
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id             Int                   @id @default(autoincrement())
+  address        String                @unique
+  label          String?
+  isActive       Boolean               @default(true)
+  chainId        Int                   @default(1)
+  createdAt      DateTime              @default(now())
+  updatedAt      DateTime              @updatedAt
+  lastDetectedAt DateTime?
 
-  userId  Int
-  user    User    @relation(fields: [userId], references: [id])
+  userId         Int
+  user           User                  @relation(fields: [userId], references: [id])
+  transactions   IncomingTransaction[]
+  ledgerEntries  SavingsLedger[]
+  withdrawals    WithdrawalRequest[]
+
+  @@index([userId])
+}
+
+model IncomingTransaction {
+  id             Int                @id @default(autoincrement())
+  txHash         String
+  blockNumber    BigInt?
+  tokenAddress   String
+  fromAddress    String
+  toAddress      String
+  amountRaw      Decimal             @db.Decimal(78, 0)
+  saveAmountWei  Decimal             @db.Decimal(78, 0)
+  detectedAt     DateTime            @default(now())
+  status         TransactionStatus   @default(PENDING)
+  metadata       Json?
+  authorizedAt   DateTime?
+  rejectedAt     DateTime?
+  fundedAt       DateTime?
+  vaultTxHash    String?
+
+  walletId       Int
+  wallet         Wallet              @relation(fields: [walletId], references: [id])
+  userId         Int
+  user           User                @relation(fields: [userId], references: [id])
+
+  ledgerEntry    SavingsLedger?
+
+  @@unique([txHash, walletId, tokenAddress])
+  @@index([walletId])
+  @@index([userId])
+}
+
+model SavingsLedger {
+  id             Int              @id @default(autoincrement())
+  userId         Int
+  walletId       Int
+  transactionId  Int?             @unique
+  action         LedgerAction
+  amountWei      Decimal          @db.Decimal(78, 0)
+  txHash         String?
+  createdAt      DateTime         @default(now())
+  notes          String?
+  metadata       Json?
+
+  user           User             @relation(fields: [userId], references: [id])
+  wallet         Wallet           @relation(fields: [walletId], references: [id])
+  transaction    IncomingTransaction? @relation(fields: [transactionId], references: [id])
+
+  @@index([userId])
+  @@index([walletId])
+}
+
+model WithdrawalRequest {
+  id             Int              @id @default(autoincrement())
+  userId         Int
+  walletId       Int
+  amountWei      Decimal          @db.Decimal(78, 0)
+  requestedAt    DateTime         @default(now())
+  availableAt    DateTime
+  status         WithdrawalStatus @default(PENDING)
+  requestTxHash  String?
+  executeTxHash  String?
+  cancelledAt    DateTime?
+  metadata       Json?
+
+  user           User             @relation(fields: [userId], references: [id])
+  wallet         Wallet           @relation(fields: [walletId], references: [id])
+
+  @@index([walletId, status])
+  @@index([userId, status])
+}
+
+enum TransactionStatus {
+  PENDING
+  AUTHORIZED
+  REJECTED
+  FUNDED
+  FAILED
+}
+
+enum LedgerAction {
+  DEPOSIT_PENDING
+  DEPOSIT_CONFIRMED
+  DEPOSIT_FAILED
+  WITHDRAW_REQUESTED
+  WITHDRAW_CANCELLED
+  WITHDRAW_COMPLETED
+  ADJUSTMENT
+}
+
+enum WithdrawalStatus {
+  PENDING
+  READY
+  COMPLETED
+  CANCELLED
+  FAILED
 }

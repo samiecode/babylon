@@ -48,7 +48,11 @@ $ anvil
 ### Deploy
 
 ```shell
-$ forge script script/Counter.s.sol:CounterScript --rpc-url <your_rpc_url> --private-key <your_private_key>
+$ forge create ./src/SavingsVault.sol:SavingsVault --rpc-url $CELO_SEPOLIA_RPC --account deployer --broadcast --constructor-args 0xControllerAdvice
+```
+### Verify
+```shell
+$ forge verify-contract $SAVINGS_VAULT_ADDRESS ./src/SavingsVault.sol:SavingsVault --chain celo-sepolia --verifier blockscout --verifier-api-key $CELOSCAN_API_KEY --verifier-url $CELOSCAN_API_URL
 ```
 
 ### Cast

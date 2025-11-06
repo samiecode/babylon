@@ -27,3 +27,18 @@ export type User = Prisma.UserModel
  * 
  */
 export type Wallet = Prisma.WalletModel
+/**
+ * Model IncomingTransaction
+ * 
+ */
+export type IncomingTransaction = Prisma.IncomingTransactionModel
+/**
+ * Model SavingsLedger
+ * 
+ */
+export type SavingsLedger = Prisma.SavingsLedgerModel
+/**
+ * Model WithdrawalRequest
+ * 
+ */
+export type WithdrawalRequest = Prisma.WithdrawalRequestModel

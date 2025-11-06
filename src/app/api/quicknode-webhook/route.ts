@@ -1,72 +1,210 @@
-// quicknode-webhook route handler
 import {NextRequest, NextResponse} from "next/server";
 import prisma from "@/lib/prisma";
+import {Prisma} from "@/app/generated/prisma/client";
 import {decodeAddress, hexToBigInt} from "@/lib/utils";
 
-// ERC-20 Transfer event signature
-const TRANSFER_SIG = process.env.QUICKNODE_SIGNATURE || "";
+type QuickNodeLog = {
+	address: string;
+	data: string;
+	topics: string[];
+	logIndex?: string | number;
+	transactionHash: string;
+	transactionIndex?: string | number;
+};
 
-// Cache for watched addresses (refresh every 5 minutes)
-let watchedAddressesCache: Set<string> | null = null;
-let lastCacheUpdate = 0;
-const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+type QuickNodeReceipt = {
+	blockNumber?: string | number;
+	logs?: QuickNodeLog[];
+};
 
-async function getWatchedAddresses(): Promise<Set<string>> {
+const TRANSFER_SIG = (process.env.QUICKNODE_SIGNATURE || "").toLowerCase();
+const CACHE_TTL_MS = 5 * 60 * 1000;
+
+type WatchedWallet = Awaited<
+	ReturnType<typeof prisma.wallet.findMany>
+>[number] & {
+	user: {savingPercentBps: number; withdrawalDelaySeconds: number};
+};
+
+let cachedWallets: Map<string, WatchedWallet> | null = null;
+let cacheExpiry = 0;
+
+async function getWatchedWallets(): Promise<Map<string, WatchedWallet>> {
 	const now = Date.now();
-	if (watchedAddressesCache && now - lastCacheUpdate < CACHE_TTL) {
-		return watchedAddressesCache;
+
+	if (cachedWallets && cacheExpiry > now) {
+		return cachedWallets;
 	}
 
 	const wallets = await prisma.wallet.findMany({
 		where: {isActive: true},
-		select: {address: true},
+		include: {user: true},
 	});
 
-	watchedAddressesCache = new Set(
-		wallets.map((w) => w.address.toLowerCase())
-	);
-	lastCacheUpdate = now;
+	const nextCache = new Map<string, WatchedWallet>();
+	for (const wallet of wallets) {
+		nextCache.set(wallet.address.toLowerCase(), wallet as WatchedWallet);
+	}
 
-	return watchedAddressesCache;
+	cachedWallets = nextCache;
+	cacheExpiry = now + CACHE_TTL_MS;
+
+	return nextCache;
+}
+
+function safeBigInt(value: unknown): bigint | null {
+	if (typeof value === "number") {
+		return BigInt(value);
+	}
+	if (typeof value === "string") {
+		if (!value.length) return null;
+		try {
+			return BigInt(value);
+		} catch {
+			return null;
+		}
+	}
+	return null;
+}
+
+function computeSaveAmount(amount: bigint, bps: number): bigint {
+	if (bps <= 0) return 0n;
+	return (amount * BigInt(bps)) / 10_000n;
 }
 
 export async function POST(req: NextRequest) {
-	const body = await req.json();
+	const payload = (await req.json()) as {
+		data?: QuickNodeReceipt[];
+	};
 
-	// Fetch watched addresses from database
-	const WATCHED_ADDRESSES = await getWatchedAddresses();
+	const watchedWallets = await getWatchedWallets();
 
-	const incoming: any[] = [];
+	const detectedTransfers: Array<{
+		wallet: WatchedWallet;
+		fromAddress: string;
+		toAddress: string;
+		tokenAddress: string;
+		txHash: string;
+		blockNumber: bigint | null;
+		amountRaw: bigint;
+		saveAmountWei: bigint;
+		log: QuickNodeLog;
+	}> = [];
 
-	for (const receipt of body?.data || []) {
-		if (!receipt?.logs) continue;
+	for (const receipt of payload.data ?? []) {
+		if (!Array.isArray(receipt.logs)) continue;
+
+		const blockNumber = safeBigInt(receipt.blockNumber);
 
 		for (const log of receipt.logs) {
-			if (log.topics?.[0]?.toLowerCase() !== TRANSFER_SIG) continue;
+			if (!log.topics?.length) continue;
+			if (log.topics[0]?.toLowerCase() !== TRANSFER_SIG) continue;
 
-			const from = decodeAddress(log.topics[1]);
-			const to = decodeAddress(log.topics[2]);
+			const to = decodeAddress(log.topics[2] ?? "");
+			const wallet = watchedWallets.get(to);
+
+			if (!wallet) continue;
+
+			const from = decodeAddress(log.topics[1] ?? "");
 			const amountRaw = hexToBigInt(log.data);
+			const saveAmountWei = computeSaveAmount(
+				amountRaw,
+				wallet.user.savingPercentBps ?? 0
+			);
 
-			if (WATCHED_ADDRESSES.has(to)) {
-				incoming.push({
-					token: log.address,
-					from,
-					to,
-					amountRaw: amountRaw.toString(),
-					txHash: log.transactionHash,
-					block: receipt.blockNumber,
-				});
-			}
+			detectedTransfers.push({
+				wallet,
+				fromAddress: from,
+				toAddress: to,
+				tokenAddress: log.address,
+				txHash: log.transactionHash,
+				blockNumber,
+				amountRaw,
+				saveAmountWei,
+				log,
+			});
 		}
 	}
 
-	if (incoming.length > 0) {
-		console.log("💸 Incoming transfers detected:", incoming);
-		// Optionally store to DB, send Slack alert, etc.
-	} else {
-		console.log("No transaction:");
+	if (!detectedTransfers.length) {
+		return NextResponse.json({success: true, detected: 0});
 	}
 
-	return NextResponse.json({success: true, detected: incoming.length});
+	await Promise.all(
+		detectedTransfers.map(async (entry) => {
+			const {wallet} = entry;
+			const amountDecimal = new Prisma.Decimal(entry.amountRaw.toString());
+			const saveAmountDecimal = new Prisma.Decimal(
+				entry.saveAmountWei.toString()
+			);
+
+			await prisma.$transaction(async (tx) => {
+				const transactionRecord = await tx.incomingTransaction.upsert({
+					where: {
+						txHash_walletId_tokenAddress: {
+							txHash: entry.txHash,
+							walletId: wallet.id,
+							tokenAddress: entry.tokenAddress.toLowerCase(),
+						},
+					},
+					create: {
+						txHash: entry.txHash,
+						blockNumber: entry.blockNumber ?? undefined,
+						tokenAddress: entry.tokenAddress.toLowerCase(),
+						fromAddress: entry.fromAddress,
+						toAddress: entry.toAddress,
+						amountRaw: amountDecimal,
+						saveAmountWei: saveAmountDecimal,
+						status: "PENDING",
+						metadata: {
+							logIndex: entry.log.logIndex ?? null,
+							transactionIndex: entry.log.transactionIndex ?? null,
+						},
+						walletId: wallet.id,
+						userId: wallet.userId,
+					},
+					update: {
+						blockNumber: entry.blockNumber ?? undefined,
+						amountRaw: amountDecimal,
+						saveAmountWei: saveAmountDecimal,
+						toAddress: entry.toAddress,
+						fromAddress: entry.fromAddress,
+						detectedAt: new Date(),
+						metadata: {
+							logIndex: entry.log.logIndex ?? null,
+							transactionIndex: entry.log.transactionIndex ?? null,
+						},
+					},
+				});
+
+				await tx.wallet.update({
+					where: {id: wallet.id},
+					data: {lastDetectedAt: new Date()},
+				});
+
+				if (entry.saveAmountWei > 0n) {
+					await tx.savingsLedger.upsert({
+						where: {transactionId: transactionRecord.id},
+						create: {
+							userId: wallet.userId,
+							walletId: wallet.id,
+							transactionId: transactionRecord.id,
+							action: "DEPOSIT_PENDING",
+							amountWei: saveAmountDecimal,
+							notes: "Auto-savings detected via QuickNode webhook",
+						},
+						update: {
+							amountWei: saveAmountDecimal,
+							createdAt: new Date(),
+						},
+					});
+				}
+			});
+		})
+	);
+
+	return NextResponse.json({
+		success: true,
+		detected: detectedTransfers.length,
+	});
 }

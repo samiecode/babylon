@@ -10,4 +10,7 @@
  */
 export type * from './models/User'
 export type * from './models/Wallet'
+export type * from './models/IncomingTransaction'
+export type * from './models/SavingsLedger'
+export type * from './models/WithdrawalRequest'
 export type * from './commonInputTypes'

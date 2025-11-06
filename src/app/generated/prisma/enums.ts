@@ -9,7 +9,36 @@
 * 🟢 You can import this file directly.
 */
 
+export const TransactionStatus = {
+  PENDING: 'PENDING',
+  AUTHORIZED: 'AUTHORIZED',
+  REJECTED: 'REJECTED',
+  FUNDED: 'FUNDED',
+  FAILED: 'FAILED'
+} as const
+
+export type TransactionStatus = (typeof TransactionStatus)[keyof typeof TransactionStatus]
 
 
-// This file is empty because there are no enums in the schema.
-export {}
+export const LedgerAction = {
+  DEPOSIT_PENDING: 'DEPOSIT_PENDING',
+  DEPOSIT_CONFIRMED: 'DEPOSIT_CONFIRMED',
+  DEPOSIT_FAILED: 'DEPOSIT_FAILED',
+  WITHDRAW_REQUESTED: 'WITHDRAW_REQUESTED',
+  WITHDRAW_CANCELLED: 'WITHDRAW_CANCELLED',
+  WITHDRAW_COMPLETED: 'WITHDRAW_COMPLETED',
+  ADJUSTMENT: 'ADJUSTMENT'
+} as const
+
+export type LedgerAction = (typeof LedgerAction)[keyof typeof LedgerAction]
+
+
+export const WithdrawalStatus = {
+  PENDING: 'PENDING',
+  READY: 'READY',
+  COMPLETED: 'COMPLETED',
+  CANCELLED: 'CANCELLED',
+  FAILED: 'FAILED'
+} as const
+
+export type WithdrawalStatus = (typeof WithdrawalStatus)[keyof typeof WithdrawalStatus]

@@ -50,7 +50,10 @@ export const AnyNull = runtime.objectEnumValues.instances.AnyNull
 
 export const ModelName = {
   User: 'User',
-  Wallet: 'Wallet'
+  Wallet: 'Wallet',
+  IncomingTransaction: 'IncomingTransaction',
+  SavingsLedger: 'SavingsLedger',
+  WithdrawalRequest: 'WithdrawalRequest'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -72,7 +75,11 @@ export type TransactionIsolationLevel = (typeof TransactionIsolationLevel)[keyof
 export const UserScalarFieldEnum = {
   id: 'id',
   email: 'email',
-  name: 'name'
+  name: 'name',
+  savingPercentBps: 'savingPercentBps',
+  withdrawalDelaySeconds: 'withdrawalDelaySeconds',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
 } as const
 
 export type UserScalarFieldEnum = (typeof UserScalarFieldEnum)[keyof typeof UserScalarFieldEnum]
@@ -83,11 +90,70 @@ export const WalletScalarFieldEnum = {
   address: 'address',
   label: 'label',
   isActive: 'isActive',
+  chainId: 'chainId',
   createdAt: 'createdAt',
-  updatedAt: 'updatedAt'
+  updatedAt: 'updatedAt',
+  lastDetectedAt: 'lastDetectedAt',
+  userId: 'userId'
 } as const
 
 export type WalletScalarFieldEnum = (typeof WalletScalarFieldEnum)[keyof typeof WalletScalarFieldEnum]
+
+
+export const IncomingTransactionScalarFieldEnum = {
+  id: 'id',
+  txHash: 'txHash',
+  blockNumber: 'blockNumber',
+  tokenAddress: 'tokenAddress',
+  fromAddress: 'fromAddress',
+  toAddress: 'toAddress',
+  amountRaw: 'amountRaw',
+  saveAmountWei: 'saveAmountWei',
+  detectedAt: 'detectedAt',
+  status: 'status',
+  metadata: 'metadata',
+  authorizedAt: 'authorizedAt',
+  rejectedAt: 'rejectedAt',
+  fundedAt: 'fundedAt',
+  vaultTxHash: 'vaultTxHash',
+  walletId: 'walletId',
+  userId: 'userId'
+} as const
+
+export type IncomingTransactionScalarFieldEnum = (typeof IncomingTransactionScalarFieldEnum)[keyof typeof IncomingTransactionScalarFieldEnum]
+
+
+export const SavingsLedgerScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  walletId: 'walletId',
+  transactionId: 'transactionId',
+  action: 'action',
+  amountWei: 'amountWei',
+  txHash: 'txHash',
+  createdAt: 'createdAt',
+  notes: 'notes',
+  metadata: 'metadata'
+} as const
+
+export type SavingsLedgerScalarFieldEnum = (typeof SavingsLedgerScalarFieldEnum)[keyof typeof SavingsLedgerScalarFieldEnum]
+
+
+export const WithdrawalRequestScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  walletId: 'walletId',
+  amountWei: 'amountWei',
+  requestedAt: 'requestedAt',
+  availableAt: 'availableAt',
+  status: 'status',
+  requestTxHash: 'requestTxHash',
+  executeTxHash: 'executeTxHash',
+  cancelledAt: 'cancelledAt',
+  metadata: 'metadata'
+} as const
+
+export type WithdrawalRequestScalarFieldEnum = (typeof WithdrawalRequestScalarFieldEnum)[keyof typeof WithdrawalRequestScalarFieldEnum]
 
 
 export const SortOrder = {
@@ -96,6 +162,14 @@ export const SortOrder = {
 } as const
 
 export type SortOrder = (typeof SortOrder)[keyof typeof SortOrder]
+
+
+export const NullableJsonNullValueInput = {
+  DbNull: DbNull,
+  JsonNull: JsonNull
+} as const
+
+export type NullableJsonNullValueInput = (typeof NullableJsonNullValueInput)[keyof typeof NullableJsonNullValueInput]
 
 
 export const QueryMode = {
@@ -112,4 +186,13 @@ export const NullsOrder = {
 } as const
 
 export type NullsOrder = (typeof NullsOrder)[keyof typeof NullsOrder]
+
+
+export const JsonNullValueFilter = {
+  DbNull: DbNull,
+  JsonNull: JsonNull,
+  AnyNull: AnyNull
+} as const
+
+export type JsonNullValueFilter = (typeof JsonNullValueFilter)[keyof typeof JsonNullValueFilter]
 
