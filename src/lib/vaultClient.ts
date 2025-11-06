@@ -37,8 +37,8 @@ function initClients(): VaultClients {
 		name: `savings-${chainId}`,
 		network: `savings-${chainId}`,
 		nativeCurrency: {
-			name: "Ether",
-			symbol: "ETH",
+			name: "CELO",
+			symbol: "CELO",
 			decimals: 18,
 		},
 		rpcUrls: {
