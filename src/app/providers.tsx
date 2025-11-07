@@ -1,10 +1,11 @@
 "use client";
 
 import {ReactNode, useMemo} from "react";
-import {WagmiConfig, type Config} from "wagmi";
+import { WagmiProvider, type Config  } from 'wagmi'
 import {celo, celoAlfajores} from "viem/chains";
 import {createAppKit} from "@reown/appkit/react";
 import {WagmiAdapter} from "@reown/appkit-adapter-wagmi";
+import {QueryClient, QueryClientProvider} from "@tanstack/react-query";
 
 const projectId = process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID || "";
 
@@ -18,6 +19,8 @@ const metadata = {
 		"https://walletconnect.com/_next/static/media/logo_mark.c2b107f4.svg",
 	],
 };
+
+const queryClient = new QueryClient()
 
 let wagmiConfigSingleton: Config | null = null;
 
@@ -36,7 +39,7 @@ function initAppKit() {
 		networks: [celo, celoAlfajores],
 		defaultNetwork: celoAlfajores,
 		metadata,
-		themeMode: "light",
+		themeMode: "dark",
 	});
 
 	wagmiConfigSingleton = adapter.wagmiConfig;
@@ -55,5 +58,11 @@ export default function Providers({children}: {children: ReactNode}) {
 		return <>{children}</>;
 	}
 
-	return <WagmiConfig config={wagmiConfig}>{children}</WagmiConfig>;
+	return (
+		<WagmiProvider config={wagmiConfig}>
+			<QueryClientProvider client={queryClient}>
+				{children}
+			</QueryClientProvider>
+		</WagmiProvider>
+	);
 }
