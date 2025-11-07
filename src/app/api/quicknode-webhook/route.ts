@@ -68,8 +68,8 @@ function safeBigInt(value: unknown): bigint | null {
 }
 
 function computeSaveAmount(amount: bigint, bps: number): bigint {
-	if (bps <= 0) return 0n;
-	return (amount * BigInt(bps)) / 10_000n;
+	if (bps <= 0) return BigInt("0");
+	return (amount * BigInt(String(bps))) / BigInt("10000");
 }
 
 export async function POST(req: NextRequest) {
@@ -133,7 +133,9 @@ export async function POST(req: NextRequest) {
 	await Promise.all(
 		detectedTransfers.map(async (entry) => {
 			const {wallet} = entry;
-			const amountDecimal = new Prisma.Decimal(entry.amountRaw.toString());
+			const amountDecimal = new Prisma.Decimal(
+				entry.amountRaw.toString()
+			);
 			const saveAmountDecimal = new Prisma.Decimal(
 				entry.saveAmountWei.toString()
 			);
@@ -158,7 +160,8 @@ export async function POST(req: NextRequest) {
 						status: "PENDING",
 						metadata: {
 							logIndex: entry.log.logIndex ?? null,
-							transactionIndex: entry.log.transactionIndex ?? null,
+							transactionIndex:
+								entry.log.transactionIndex ?? null,
 						},
 						walletId: wallet.id,
 						userId: wallet.userId,
@@ -172,7 +175,8 @@ export async function POST(req: NextRequest) {
 						detectedAt: new Date(),
 						metadata: {
 							logIndex: entry.log.logIndex ?? null,
-							transactionIndex: entry.log.transactionIndex ?? null,
+							transactionIndex:
+								entry.log.transactionIndex ?? null,
 						},
 					},
 				});
@@ -182,7 +186,7 @@ export async function POST(req: NextRequest) {
 					data: {lastDetectedAt: new Date()},
 				});
 
-				if (entry.saveAmountWei > 0n) {
+				if (entry.saveAmountWei > BigInt("0")) {
 					await tx.savingsLedger.upsert({
 						where: {transactionId: transactionRecord.id},
 						create: {

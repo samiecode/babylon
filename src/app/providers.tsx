@@ -4,8 +4,7 @@ import {ReactNode, useMemo} from "react";
 import {WagmiConfig, type Config} from "wagmi";
 import {celo, celoAlfajores} from "viem/chains";
 import {createAppKit} from "@reown/appkit/react";
-import { WagmiAdapter } from "@reown/appkit-adapter-wagmi";
-import type { AppKitNetwork } from "@reown/appkit/networks";
+import {WagmiAdapter} from "@reown/appkit-adapter-wagmi";
 
 const projectId = process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID || "";
 
@@ -15,12 +14,10 @@ const metadata = {
 	name: "Babylon Auto-Savings",
 	description: "Auto-save CELO inflows with configurable vault rules.",
 	url: "https://babylon.local",
-	icons: ["https://walletconnect.com/_next/static/media/logo_mark.c2b107f4.svg"],
+	icons: [
+		"https://walletconnect.com/_next/static/media/logo_mark.c2b107f4.svg",
+	],
 };
-
-const appNetworks: AppKitNetwork[] = [
-  celo, celoAlfajores
-];
 
 let wagmiConfigSingleton: Config | null = null;
 
@@ -36,7 +33,7 @@ function initAppKit() {
 	createAppKit({
 		projectId,
 		adapters: [adapter],
-		networks: appNetworks,
+		networks: [celo, celoAlfajores],
 		defaultNetwork: celoAlfajores,
 		metadata,
 		themeMode: "light",

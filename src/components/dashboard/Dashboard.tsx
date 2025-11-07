@@ -69,7 +69,7 @@ type ApiResponse<T> = {
 	error?: string;
 };
 
-const WEI = 10n ** 18n;
+const WEI = BigInt(10) ** BigInt(18);
 const walletConnectEnabled = Boolean(
 	process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID
 );
