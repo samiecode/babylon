@@ -283,7 +283,7 @@ export default function Dashboard() {
 					<div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
 						<div>
 							<h1 className="text-3xl font-semibold">
-								Saviumy
+								Savium
 							</h1>
 							{overview?.user && (
 								<p className="mt-1 text-sm text-gray-600">
