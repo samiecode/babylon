@@ -34,8 +34,8 @@ function initClients(): VaultClients {
 
 	const chain = defineChain({
 		id: chainId,
-		name: `savings-${chainId}`,
-		network: `savings-${chainId}`,
+		name: `celo-${chainId}`,
+		network: `celo-${chainId}`,
 		nativeCurrency: {
 			name: "CELO",
 			symbol: "CELO",

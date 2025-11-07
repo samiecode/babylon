@@ -2,7 +2,7 @@
 pragma solidity ^0.8.20;
 
 /// @title SavingsVault
-/// @notice Ether vault that tracks auto-saved balances per saver account with configurable withdrawal delays.
+/// @notice Native-asset vault (CELO-compatible) that tracks auto-saved balances per saver account with configurable withdrawal delays.
 contract SavingsVault {
     uint256 private constant MAX_BPS = 10_000;
     uint40 public constant MIN_WITHDRAWAL_DELAY = 1 hours;

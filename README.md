@@ -1,6 +1,6 @@
 # Babylon Auto-Savings Platform
 
-Babylon monitors user wallets, calculates auto-save amounts for each incoming transfer, and funds a non-custodial vault smart contract once the user approves. Users can later trigger withdrawals subject to the cooldown they configured.
+Babylon monitors user wallets, calculates auto-save amounts for each incoming transfer, and funds a non-custodial vault smart contract once the user approves. Users can later trigger withdrawals subject to the cooldown they configured. The on-chain components currently target the Celo network (e.g. Celo Sepolia).
 
 ## Architecture Overview
 
@@ -29,12 +29,21 @@ Copy `.env.example` to `.env` and fill in:
 |----------|-------------|
 | `DATABASE_URL` | PostgreSQL connection string used by Prisma |
 | `QUICKNODE_SIGNATURE` | Keccak-256 topic for ERC-20 `Transfer` (defaults to standard signature) |
-| `SAVINGS_RPC_URL` | RPC endpoint used by the relayer (QuickNode, Infura, etc.) |
-| `SAVINGS_CHAIN_ID` | Chain ID of the deployed vault contract |
+| `SAVINGS_RPC_URL` | RPC endpoint used by the relayer (e.g. `https://forno.sepolia.celo-testnet.org`) |
+| `SAVINGS_CHAIN_ID` | Chain ID of the deployed vault contract (`44787` for Celo Sepolia, `42220` for Celo mainnet) |
 | `SAVINGS_VAULT_ADDRESS` | Deployed `SavingsVault` contract address |
 | `SAVINGS_RELAYER_PRIVATE_KEY` | Relayer private key (without `0x` prefix) used to call the vault |
+| `NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID` | WalletConnect Cloud project id used by AppKit in the dashboard UI |
 
-The relayer account should be funded with native tokens to cover gas fees.
+The relayer account should be funded with native CELO to cover gas fees. Example Celo Sepolia snippet:
+
+```env
+SAVINGS_RPC_URL="https://forno.sepolia.celo-testnet.org"
+SAVINGS_CHAIN_ID="44787"
+SAVINGS_VAULT_ADDRESS="0x..."
+SAVINGS_RELAYER_PRIVATE_KEY="YOUR_PRIVATE_KEY_NO_0x"
+NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID="your_cloud_project_id"
+```
 
 ## Database & Prisma
 
@@ -64,6 +73,12 @@ The app will be available at `http://localhost:3000`.
   cd src/contract
   forge test
   ```
+
+## WalletConnect / AppKit (UI)
+
+- The Next.js dashboard (`src/components/dashboard/Dashboard.tsx`) now ships with a WalletConnect-powered `Connect Wallet` button via Reown AppKit.
+- Supply `NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID` plus the relayer RPC settings to enable the UI modal and downstream wagmi hooks.
+- The provider lives in `src/app/providers.tsx` and automatically registers the Celo Mainnet + Alfajores networks with AppKit.
 
 ### Deployment
 
