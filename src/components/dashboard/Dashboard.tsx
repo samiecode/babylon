@@ -1,133 +1,25 @@
 "use client";
 
-import {FormEvent, useEffect, useMemo, useState} from "react";
+import {FormEvent, useCallback, useEffect, useMemo, useState} from "react";
 import {AppKitButton} from "@reown/appkit/react";
-
-type Wallet = {
-	id: number;
-	address: string;
-	label?: string | null;
-	isActive: boolean;
-	chainId: number;
-	createdAt: string;
-	userId: number;
-	user: {
-		id: number;
-		email: string;
-		name?: string | null;
-	};
-};
-
-type IncomingTransaction = {
-	id: number;
-	txHash: string;
-	tokenAddress: string;
-	fromAddress: string;
-	toAddress: string;
-	amountRaw: string;
-	saveAmountWei: string;
-	status: string;
-	detectedAt: string;
-	wallet: Wallet;
-};
-
-type LedgerEntry = {
-	id: number;
-	action: string;
-	amountWei: string;
-	txHash?: string | null;
-	createdAt: string;
-	notes?: string | null;
-	wallet: Wallet;
-};
-
-type WithdrawalRequest = {
-	id: number;
-	amountWei: string;
-	status: string;
-	availableAt: string;
-	requestedAt: string;
-	requestTxHash?: string | null;
-	wallet: Wallet;
-};
-
-type OverviewPayload = {
-	wallets: Wallet[];
-	pendingTransactions: IncomingTransaction[];
-	ledgerEntries: LedgerEntry[];
-	withdrawalRequests: WithdrawalRequest[];
-	stats: {
-		totalWallets: number;
-		pendingTransactions: number;
-		pendingWithdrawals: number;
-	};
-};
-
-type ApiResponse<T> = {
-	success: boolean;
-	data?: T;
-	error?: string;
-};
-
-const WEI = BigInt(10) ** BigInt(18);
-const walletConnectEnabled = Boolean(
-	process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID
-);
-
-function getErrorMessage(error: unknown) {
-	if (error instanceof Error) return error.message;
-	if (typeof error === "string") return error;
-	return "Unexpected error";
-}
-
-function formatWei(value?: string | null, suffix = "CELO") {
-	if (!value) return "-";
-	try {
-		const raw = BigInt(value);
-		const whole = raw / WEI;
-		const fraction = raw % WEI;
-		const fracStr = fraction
-			.toString()
-			.padStart(18, "0")
-			.slice(0, 4)
-			.replace(/0+$/, "");
-		return `${whole.toString()}${fracStr ? `.${fracStr}` : ""} ${suffix}`;
-	} catch {
-		return `${value} wei`;
-	}
-}
-
-function formatDate(value?: string | null) {
-	if (!value) return "-";
-	const date = new Date(value);
-	return `${date.toLocaleDateString()} ${date.toLocaleTimeString()}`;
-}
-
-function formatStatus(status?: string) {
-	if (!status) return "-";
-	return status
-		.toLowerCase()
-		.split("_")
-		.map((chunk) => chunk.charAt(0).toUpperCase() + chunk.slice(1))
-		.join(" ");
-}
-
-type Toast = {message: string; type: "success" | "error"};
+import {useAccount} from "wagmi";
+import type {ApiResponse, OverviewPayload, Toast} from "@/types";
+import {
+	getErrorMessage,
+	walletConnectEnabled,
+	formatWei,
+	formatDate,
+	formatStatus,
+} from "@/lib/utils";
 
 export default function Dashboard() {
+	const {address: connectedAddress, isConnected} = useAccount();
 	const [overview, setOverview] = useState<OverviewPayload | null>(null);
 	const [loading, setLoading] = useState(true);
 	const [toast, setToast] = useState<Toast | null>(null);
+	const [autoRegisterAttempted, setAutoRegisterAttempted] = useState(false);
 
-	const [walletForm, setWalletForm] = useState({
-		userId: "",
-		address: "",
-		label: "",
-		chainId: "44787",
-	});
 	const [configForm, setConfigForm] = useState({
-		userId: "",
-		walletAddress: "",
 		savingPercentBps: "500",
 		withdrawalDelaySeconds: "86400",
 	});
@@ -139,7 +31,6 @@ export default function Dashboard() {
 	});
 	const [withdrawForm, setWithdrawForm] = useState({
 		action: "request",
-		userId: "",
 		walletAddress: "",
 		amountWei: "",
 	});
@@ -156,14 +47,18 @@ export default function Dashboard() {
 		[overview?.wallets]
 	);
 
-	useEffect(() => {
-		void refreshOverview();
-	}, []);
+	const refreshOverview = useCallback(async () => {
+		if (!connectedAddress) {
+			// Don't load overview if no wallet is connected
+			setLoading(false);
+			return;
+		}
 
-	async function refreshOverview() {
 		setLoading(true);
 		try {
-			const res = await fetch("/api/savings/overview");
+			const res = await fetch(
+				`/api/savings/overview?address=${connectedAddress}`
+			);
 			const json: ApiResponse<OverviewPayload> = await res.json();
 			if (!res.ok || !json.success || !json.data) {
 				throw new Error(json.error || "Failed to load overview");
@@ -176,7 +71,106 @@ export default function Dashboard() {
 		} finally {
 			setLoading(false);
 		}
-	}
+	}, [connectedAddress]);
+
+	useEffect(() => {
+		if (isConnected && connectedAddress) {
+			void refreshOverview();
+		}
+	}, [isConnected, connectedAddress, refreshOverview]);
+
+	// Auto-register wallet when user connects
+	useEffect(() => {
+		if (!isConnected || !connectedAddress || autoRegisterAttempted) {
+			return;
+		}
+
+		const autoRegisterWallet = async () => {
+			try {
+				// Check if wallet already exists in overview
+				const walletExists = overview?.wallets?.some(
+					(w) =>
+						w.address.toLowerCase() ===
+						connectedAddress.toLowerCase()
+				);
+
+				if (walletExists) {
+					setToast({
+						message: "Wallet already registered",
+						type: "success",
+					});
+					return;
+				}
+
+				// Auto-register using the dedicated endpoint
+				const response = await fetch("/api/wallets/auto-register", {
+					method: "POST",
+					headers: {"Content-Type": "application/json"},
+					body: JSON.stringify({
+						address: connectedAddress,
+						label: `Auto-registered ${new Date().toLocaleDateString()}`,
+						chainId: 44787, // Celo Alfajores
+					}),
+				});
+
+				const json = await response.json();
+
+				if (!response.ok) {
+					// If it's a duplicate error, that's okay
+					if (json.error?.includes("already exists")) {
+						setToast({
+							message: "Wallet already registered",
+							type: "success",
+						});
+					} else {
+						throw new Error(
+							json.error || "Failed to auto-register wallet"
+						);
+					}
+				} else {
+					if (json.alreadyExists) {
+						setToast({
+							message: "Wallet already registered",
+							type: "success",
+						});
+					} else {
+						setToast({
+							message: `🎉 Wallet ${connectedAddress.slice(
+								0,
+								6
+							)}...${connectedAddress.slice(
+								-4
+							)} registered! Configure your savings settings below.`,
+							type: "success",
+						});
+					}
+					await refreshOverview();
+				}
+			} catch (error: unknown) {
+				const message = getErrorMessage(error);
+				console.error("Auto-register error:", error);
+				setToast({
+					message: `Auto-register failed: ${message}`,
+					type: "error",
+				});
+			} finally {
+				setAutoRegisterAttempted(true);
+			}
+		};
+
+		// Wait a bit for overview to load first
+		const timer = setTimeout(() => {
+			void autoRegisterWallet();
+		}, 1000);
+
+		return () => clearTimeout(timer);
+	}, [
+		isConnected,
+		connectedAddress,
+		overview?.wallets,
+		autoRegisterAttempted,
+		refreshOverview,
+	]);
 
 	async function handleSubmit(
 		key: keyof typeof submitting,
@@ -198,45 +192,22 @@ export default function Dashboard() {
 		}
 	}
 
-	const onAddWallet = (event: FormEvent<HTMLFormElement>) => {
-		event.preventDefault();
-		return handleSubmit("wallet", async () => {
-			const response = await fetch("/api/wallets", {
-				method: "POST",
-				headers: {"Content-Type": "application/json"},
-				body: JSON.stringify({
-					userId: Number(walletForm.userId),
-					address: walletForm.address,
-					label: walletForm.label,
-					chainId: Number(walletForm.chainId),
-					isActive: true,
-				}),
-			});
-			const json = await response.json();
-			if (!response.ok) {
-				throw new Error(json.error || "Failed to add wallet");
-			}
-			setWalletForm({
-				userId: "",
-				address: "",
-				label: "",
-				chainId: walletForm.chainId,
-			});
-			setToast({message: "Wallet registered", type: "success"});
-		});
-	};
-
 	const onConfigureSavings = (event: FormEvent<HTMLFormElement>) => {
 		event.preventDefault();
 		return handleSubmit("config", async () => {
+			if (!connectedAddress) {
+				throw new Error("Please connect your wallet first");
+			}
+
 			const response = await fetch("/api/savings/config", {
 				method: "POST",
 				headers: {"Content-Type": "application/json"},
 				body: JSON.stringify({
-					userId: Number(configForm.userId),
-					walletAddress: configForm.walletAddress,
+					walletAddress: connectedAddress,
 					savingPercentBps: Number(configForm.savingPercentBps),
-					withdrawalDelaySeconds: Number(configForm.withdrawalDelaySeconds),
+					withdrawalDelaySeconds: Number(
+						configForm.withdrawalDelaySeconds
+					),
 				}),
 			});
 			const json = await response.json();
@@ -262,7 +233,9 @@ export default function Dashboard() {
 			});
 			const json = await response.json();
 			if (!response.ok) {
-				throw new Error(json.error || "Failed to process authorization");
+				throw new Error(
+					json.error || "Failed to process authorization"
+				);
 			}
 			setAuthorizationForm({
 				transactionId: "",
@@ -277,13 +250,18 @@ export default function Dashboard() {
 	const onWithdrawAction = (event: FormEvent<HTMLFormElement>) => {
 		event.preventDefault();
 		return handleSubmit("withdraw", async () => {
+			if (!connectedAddress || !overview?.user) {
+				throw new Error("Please connect your wallet first");
+			}
 
 			const response = await fetch("/api/savings/withdraw", {
 				method: "POST",
 				headers: {"Content-Type": "application/json"},
 				body: JSON.stringify({
-					...withdrawForm,
-					userId: Number(withdrawForm.userId),
+					action: withdrawForm.action,
+					userId: overview.user.id,
+					walletAddress:
+						withdrawForm.walletAddress || connectedAddress,
 					amountWei:
 						withdrawForm.action === "request"
 							? withdrawForm.amountWei
@@ -303,27 +281,58 @@ export default function Dashboard() {
 			<div className="mx-auto flex w-full max-w-6xl flex-col gap-8">
 				<header className="flex flex-col gap-2">
 					<div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-						<h1 className="text-3xl font-semibold">Babylon Savings Console</h1>
+						<div>
+							<h1 className="text-3xl font-semibold">
+								Saviumy
+							</h1>
+							{overview?.user && (
+								<p className="mt-1 text-sm text-gray-600">
+									Welcome,{" "}
+									{overview.user.name || overview.user.email}
+								</p>
+							)}
+						</div>
 						<div className="flex flex-col gap-2 text-right sm:flex-row sm:items-center">
 							{walletConnectEnabled ? (
-								<AppKitButton label="Connect Wallet" balance="hide" />
+								<AppKitButton
+									label="Connect Wallet"
+									balance="hide"
+								/>
 							) : (
 								<span className="text-xs text-gray-500">
-									Add NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID to enable WalletConnect
+									Add NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID to
+									enable WalletConnect
 								</span>
 							)}
 							<button
 								onClick={() => refreshOverview()}
 								className="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium hover:bg-white"
 								type="button"
+								disabled={!connectedAddress}
 							>
 								Refresh
 							</button>
 						</div>
 					</div>
+					{isConnected && connectedAddress && (
+						<div className="rounded-md border border-blue-200 bg-blue-50 px-4 py-2 text-sm text-blue-800">
+							<span className="font-medium">✓ Connected:</span>{" "}
+							<code className="rounded bg-blue-100 px-1 py-0.5">
+								{connectedAddress}
+							</code>
+						</div>
+					)}
+					{!isConnected && (
+						<div className="rounded-md border border-amber-200 bg-amber-50 px-4 py-2 text-sm text-amber-800">
+							<span className="font-medium">
+								⚠️ Please connect your wallet to view your
+								savings dashboard
+							</span>
+						</div>
+					)}
 					<p className="text-sm text-gray-600">
-						Configure wallets, approve deposits, and orchestrate withdrawals
-						directly from the dashboard.
+						Manage your auto-savings, approve deposits, and withdraw
+						your funds.
 					</p>
 				</header>
 
@@ -350,9 +359,11 @@ export default function Dashboard() {
 
 				<section className="grid grid-cols-1 gap-4 md:grid-cols-3">
 					<StatCard
-						label="Tracked wallets"
+						label="My wallets"
 						value={
-							loading
+							!isConnected
+								? "-"
+								: loading
 								? "Loading..."
 								: overview?.stats.totalWallets.toString() ?? "0"
 						}
@@ -360,48 +371,81 @@ export default function Dashboard() {
 					<StatCard
 						label="Pending auto-saves"
 						value={
-							loading
+							!isConnected
+								? "-"
+								: loading
 								? "Loading..."
-								: overview?.stats.pendingTransactions.toString() ?? "0"
+								: overview?.stats.pendingTransactions.toString() ??
+								  "0"
 						}
 					/>
 					<StatCard
 						label="Pending withdrawals"
 						value={
-							loading
+							!isConnected
+								? "-"
+								: loading
 								? "Loading..."
-								: overview?.stats.pendingWithdrawals.toString() ?? "0"
+								: overview?.stats.pendingWithdrawals.toString() ??
+								  "0"
 						}
 					/>
 				</section>
 
 				<section className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-					<Card title="Register Wallet" description="Track a new Celo wallet">
-						<form className="flex flex-col gap-3" onSubmit={onAddWallet}>
+					{/* <Card
+						title="Register Wallet"
+						description="Track a new Celo wallet"
+					>
+						<form
+							className="flex flex-col gap-3"
+							onSubmit={onAddWallet}
+						>
 							<input
 								required
 								type="number"
 								min="1"
 								value={walletForm.userId}
 								onChange={(e) =>
-									setWalletForm((prev) => ({...prev, userId: e.target.value}))
+									setWalletForm((prev) => ({
+										...prev,
+										userId: e.target.value,
+									}))
 								}
 								placeholder="User ID"
 								className="rounded-md border border-gray-300 px-3 py-2 text-sm"
 							/>
 							<input
-								required
 								value={walletForm.address}
 								onChange={(e) =>
-									setWalletForm((prev) => ({...prev, address: e.target.value}))
+									setWalletForm((prev) => ({
+										...prev,
+										address: e.target.value,
+									}))
 								}
-								placeholder="Wallet address"
+								placeholder={
+									connectedAddress
+										? `Connected: ${connectedAddress.slice(
+												0,
+												8
+										  )}...${connectedAddress.slice(-6)}`
+										: "Wallet address (or connect wallet)"
+								}
 								className="rounded-md border border-gray-300 px-3 py-2 text-sm"
 							/>
+							{connectedAddress && !walletForm.address && (
+								<p className="text-xs text-gray-500">
+									💡 Connected wallet will be used if you
+									leave this blank
+								</p>
+							)}
 							<input
 								value={walletForm.label}
 								onChange={(e) =>
-									setWalletForm((prev) => ({...prev, label: e.target.value}))
+									setWalletForm((prev) => ({
+										...prev,
+										label: e.target.value,
+									}))
 								}
 								placeholder="Label (optional)"
 								className="rounded-md border border-gray-300 px-3 py-2 text-sm"
@@ -411,7 +455,10 @@ export default function Dashboard() {
 								type="number"
 								value={walletForm.chainId}
 								onChange={(e) =>
-									setWalletForm((prev) => ({...prev, chainId: e.target.value}))
+									setWalletForm((prev) => ({
+										...prev,
+										chainId: e.target.value,
+									}))
 								}
 								placeholder="Chain ID (e.g. 44787)"
 								className="rounded-md border border-gray-300 px-3 py-2 text-sm"
@@ -421,47 +468,30 @@ export default function Dashboard() {
 								className="rounded-md bg-gray-900 px-4 py-2 text-sm font-semibold text-white hover:bg-gray-800 disabled:opacity-60"
 								disabled={submitting.wallet}
 							>
-								{submitting.wallet ? "Registering..." : "Register wallet"}
+								{submitting.wallet
+									? "Registering..."
+									: "Register wallet"}
 							</button>
 						</form>
-					</Card>
+					</Card> */}
 
 					<Card
 						title="Savings Preferences"
-						description="Update saving % and withdrawal lock"
+						description="Configure your auto-savings percentage and withdrawal lock period"
 					>
-						<form className="flex flex-col gap-3" onSubmit={onConfigureSavings}>
-							<input
-								required
-								type="number"
-								min="1"
-								value={configForm.userId}
-								onChange={(e) =>
-									setConfigForm((prev) => ({...prev, userId: e.target.value}))
-								}
-								placeholder="User ID"
-								className="rounded-md border border-gray-300 px-3 py-2 text-sm"
-							/>
-							<input
-								required
-								value={configForm.walletAddress}
-								onChange={(e) =>
-									setConfigForm((prev) => ({
-										...prev,
-										walletAddress: e.target.value,
-									}))
-								}
-								placeholder="Wallet address"
-								className="rounded-md border border-gray-300 px-3 py-2 text-sm"
-							/>
+						<form
+							className="flex flex-col gap-3"
+							onSubmit={onConfigureSavings}
+						>
 							<label className="text-xs font-medium text-gray-600">
-								Saving percentage (basis points)
+								Saving percentage (0-50%)
 							</label>
 							<input
 								required
 								type="number"
 								min="0"
-								max="10000"
+								max="50"
+								step="0.01"
 								value={configForm.savingPercentBps}
 								onChange={(e) =>
 									setConfigForm((prev) => ({
@@ -469,30 +499,47 @@ export default function Dashboard() {
 										savingPercentBps: e.target.value,
 									}))
 								}
+								placeholder="e.g., 10 for 10%"
 								className="rounded-md border border-gray-300 px-3 py-2 text-sm"
 							/>
+							<p className="text-xs text-gray-500">
+								Percentage of each incoming transfer to
+								auto-save
+							</p>
 							<label className="text-xs font-medium text-gray-600">
-								Withdrawal delay (seconds)
+								Withdrawal lock period (hours)
 							</label>
 							<input
 								required
 								type="number"
-								min="3600"
-								value={configForm.withdrawalDelaySeconds}
+								min="1"
+								value={Math.floor(
+									Number(configForm.withdrawalDelaySeconds) /
+										3600
+								)}
 								onChange={(e) =>
 									setConfigForm((prev) => ({
 										...prev,
-										withdrawalDelaySeconds: e.target.value,
+										withdrawalDelaySeconds: String(
+											Number(e.target.value) * 3600
+										),
 									}))
 								}
+								placeholder="e.g., 24 for 1 day"
 								className="rounded-md border border-gray-300 px-3 py-2 text-sm"
 							/>
+							<p className="text-xs text-gray-500">
+								How long to wait before you can withdraw
+								(minimum 1 hour)
+							</p>
 							<button
 								type="submit"
 								className="rounded-md bg-gray-900 px-4 py-2 text-sm font-semibold text-white hover:bg-gray-800 disabled:opacity-60"
-								disabled={submitting.config}
+								disabled={submitting.config || !isConnected}
 							>
-								{submitting.config ? "Saving..." : "Save preferences"}
+								{submitting.config
+									? "Saving..."
+									: "Save preferences"}
 							</button>
 						</form>
 					</Card>
@@ -503,7 +550,10 @@ export default function Dashboard() {
 						title="Authorization"
 						description="Approve or reject pending auto-save transactions"
 					>
-						<form className="flex flex-col gap-3" onSubmit={onAuthorizeTransaction}>
+						<form
+							className="flex flex-col gap-3"
+							onSubmit={onAuthorizeTransaction}
+						>
 							<select
 								required
 								value={authorizationForm.transactionId}
@@ -515,11 +565,15 @@ export default function Dashboard() {
 								}
 								className="rounded-md border border-gray-300 px-3 py-2 text-sm"
 							>
-								<option value="">Select a pending transaction</option>
+								<option value="">
+									Select a pending transaction
+								</option>
 								{overview?.pendingTransactions.map((tx) => (
 									<option key={tx.id} value={tx.id}>
-										#{tx.id} · {tx.wallet.label ?? tx.wallet.address.slice(0, 6)} ·{" "}
-										{formatWei(tx.saveAmountWei)}
+										#{tx.id} ·{" "}
+										{tx.wallet.label ??
+											tx.wallet.address.slice(0, 6)}{" "}
+										· {formatWei(tx.saveAmountWei)}
 									</option>
 								))}
 							</select>
@@ -563,16 +617,24 @@ export default function Dashboard() {
 								className="rounded-md bg-gray-900 px-4 py-2 text-sm font-semibold text-white hover:bg-gray-800 disabled:opacity-60"
 								disabled={submitting.authorize}
 							>
-								{submitting.authorize ? "Processing..." : "Submit decision"}
+								{submitting.authorize
+									? "Processing..."
+									: "Submit decision"}
 							</button>
 						</form>
 					</Card>
 
 					<Card
 						title="Withdrawals"
-						description="Request, cancel, or execute withdrawals"
+						description="Request, cancel, or execute your withdrawals"
 					>
-						<form className="flex flex-col gap-3" onSubmit={onWithdrawAction}>
+						<form
+							className="flex flex-col gap-3"
+							onSubmit={onWithdrawAction}
+						>
+							<label className="text-xs font-medium text-gray-600">
+								Action
+							</label>
 							<select
 								value={withdrawForm.action}
 								onChange={(e) =>
@@ -582,25 +644,28 @@ export default function Dashboard() {
 									}))
 								}
 								className="rounded-md border border-gray-300 px-3 py-2 text-sm"
+								disabled={!isConnected}
 							>
-								<option value="request">Request withdrawal</option>
-								<option value="execute">Execute withdrawal</option>
-								<option value="cancel">Cancel withdrawal</option>
+								<option value="request">
+									Request withdrawal
+								</option>
+								<option value="execute">
+									Execute withdrawal
+								</option>
+								<option value="cancel">
+									Cancel withdrawal
+								</option>
 							</select>
-							<input
-								required
-								type="number"
-								min="1"
-								value={withdrawForm.userId}
-								onChange={(e) =>
-									setWithdrawForm((prev) => ({
-										...prev,
-										userId: e.target.value,
-									}))
-								}
-								placeholder="User ID"
-								className="rounded-md border border-gray-300 px-3 py-2 text-sm"
-							/>
+							<p className="text-xs text-gray-500">
+								{withdrawForm.action === "request"
+									? "Start a new withdrawal request"
+									: withdrawForm.action === "execute"
+									? "Complete your withdrawal (after lock period expires)"
+									: "Cancel a pending withdrawal"}
+							</p>
+							<label className="text-xs font-medium text-gray-600">
+								Wallet address
+							</label>
 							<select
 								required
 								value={withdrawForm.walletAddress}
@@ -611,47 +676,80 @@ export default function Dashboard() {
 									}))
 								}
 								className="rounded-md border border-gray-300 px-3 py-2 text-sm"
+								disabled={!isConnected}
 							>
-								<option value="">Choose wallet</option>
+								<option value="">
+									{!isConnected
+										? "Connect wallet first"
+										: activeWallets.length === 0
+										? "No wallets found"
+										: "Choose wallet"}
+								</option>
 								{activeWallets.map((wallet) => (
-									<option key={wallet.id} value={wallet.address}>
-										{wallet.label ?? wallet.address} · User {wallet.userId}
+									<option
+										key={wallet.id}
+										value={wallet.address}
+									>
+										{wallet.label || wallet.address}
 									</option>
 								))}
 							</select>
 							{withdrawForm.action === "request" ? (
-								<input
-									required
-									value={withdrawForm.amountWei}
-									onChange={(e) =>
-										setWithdrawForm((prev) => ({
-											...prev,
-											amountWei: e.target.value,
-										}))
-									}
-									placeholder="Amount in wei"
-									className="rounded-md border border-gray-300 px-3 py-2 text-sm"
-								/>
+								<>
+									<label className="text-xs font-medium text-gray-600">
+										Amount (in wei)
+									</label>
+									<input
+										required
+										value={withdrawForm.amountWei}
+										onChange={(e) =>
+											setWithdrawForm((prev) => ({
+												...prev,
+												amountWei: e.target.value,
+											}))
+										}
+										placeholder="e.g., 1000000000000000000"
+										className="rounded-md border border-gray-300 px-3 py-2 text-sm"
+										disabled={!isConnected}
+									/>
+									<p className="text-xs text-gray-500">
+										1 CELO = 1000000000000000000 wei
+									</p>
+								</>
 							) : null}
 							<button
 								type="submit"
 								className="rounded-md bg-gray-900 px-4 py-2 text-sm font-semibold text-white hover:bg-gray-800 disabled:opacity-60"
-								disabled={submitting.withdraw}
+								disabled={submitting.withdraw || !isConnected}
 							>
-								{submitting.withdraw ? "Submitting..." : "Run action"}
+								{submitting.withdraw
+									? "Processing..."
+									: withdrawForm.action === "request"
+									? "Request withdrawal"
+									: withdrawForm.action === "execute"
+									? "Execute withdrawal"
+									: "Cancel withdrawal"}
 							</button>
+							{!isConnected && (
+								<p className="text-xs text-orange-600">
+									⚠️ Connect your wallet to manage withdrawals
+								</p>
+							)}
 						</form>
 					</Card>
 				</section>
 
 				<section className="grid grid-cols-1 gap-6">
 					<DataCard
-						title="Recent Wallets"
-						emptyLabel="No wallets yet"
-						headers={["User", "Address", "Label", "Created"]}
+						title="My Wallets"
+						emptyLabel={
+							!isConnected
+								? "Connect your wallet to get started"
+								: "No wallets registered yet"
+						}
+						headers={["Address", "Label", "Registered on"]}
 						rows={
 							overview?.wallets.map((wallet) => [
-								wallet.user.email,
 								wallet.address,
 								wallet.label ?? "-",
 								formatDate(wallet.createdAt),
@@ -660,8 +758,18 @@ export default function Dashboard() {
 					/>
 					<DataCard
 						title="Pending Auto-Saves"
-						emptyLabel="No pending transfers"
-						headers={["Tx", "Wallet", "Amount", "Status", "Detected"]}
+						emptyLabel={
+							!isConnected
+								? "Connect to view pending transactions"
+								: "No pending auto-save transactions"
+						}
+						headers={[
+							"Tx",
+							"Wallet",
+							"Amount",
+							"Status",
+							"Detected",
+						]}
 						rows={
 							overview?.pendingTransactions.map((tx) => [
 								tx.txHash.slice(0, 10) + "...",
@@ -673,8 +781,12 @@ export default function Dashboard() {
 						}
 					/>
 					<DataCard
-						title="Active Withdrawals"
-						emptyLabel="No pending withdrawals"
+						title="My Withdrawals"
+						emptyLabel={
+							!isConnected
+								? "Connect to view your withdrawals"
+								: "No pending withdrawals"
+						}
 						headers={["Wallet", "Amount", "Status", "Available"]}
 						rows={
 							overview?.withdrawalRequests.map((request) => [
@@ -686,9 +798,19 @@ export default function Dashboard() {
 						}
 					/>
 					<DataCard
-						title="Latest Ledger Entries"
-						emptyLabel="No ledger entries"
-						headers={["Wallet", "Action", "Amount", "Notes", "Created"]}
+						title="Savings History"
+						emptyLabel={
+							!isConnected
+								? "Connect to view your history"
+								: "No ledger entries"
+						}
+						headers={[
+							"Wallet",
+							"Action",
+							"Amount",
+							"Notes",
+							"Created",
+						]}
 						rows={
 							overview?.ledgerEntries.map((entry) => [
 								entry.wallet.label ?? entry.wallet.address,
@@ -767,9 +889,15 @@ function DataCard({
 						</thead>
 						<tbody>
 							{rows.map((row, idx) => (
-								<tr key={`${row[0]}-${idx}`} className="even:bg-gray-50/40">
+								<tr
+									key={`${row[0]}-${idx}`}
+									className="even:bg-gray-50/40"
+								>
 									{row.map((value, cellIdx) => (
-										<td key={`${value}-${cellIdx}`} className="px-2 py-2">
+										<td
+											key={`${value}-${cellIdx}`}
+											className="px-2 py-2"
+										>
 											{value}
 										</td>
 									))}

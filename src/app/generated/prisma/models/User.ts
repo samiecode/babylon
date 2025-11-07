@@ -201,7 +201,7 @@ export type UserGroupByArgs<ExtArgs extends runtime.Types.Extensions.InternalArg
 
 export type UserGroupByOutputType = {
   id: number
-  email: string
+  email: string | null
   name: string | null
   savingPercentBps: number
   withdrawalDelaySeconds: number
@@ -234,7 +234,7 @@ export type UserWhereInput = {
   OR?: Prisma.UserWhereInput[]
   NOT?: Prisma.UserWhereInput | Prisma.UserWhereInput[]
   id?: Prisma.IntFilter<"User"> | number
-  email?: Prisma.StringFilter<"User"> | string
+  email?: Prisma.StringNullableFilter<"User"> | string | null
   name?: Prisma.StringNullableFilter<"User"> | string | null
   savingPercentBps?: Prisma.IntFilter<"User"> | number
   withdrawalDelaySeconds?: Prisma.IntFilter<"User"> | number
@@ -248,7 +248,7 @@ export type UserWhereInput = {
 
 export type UserOrderByWithRelationInput = {
   id?: Prisma.SortOrder
-  email?: Prisma.SortOrder
+  email?: Prisma.SortOrderInput | Prisma.SortOrder
   name?: Prisma.SortOrderInput | Prisma.SortOrder
   savingPercentBps?: Prisma.SortOrder
   withdrawalDelaySeconds?: Prisma.SortOrder
@@ -279,7 +279,7 @@ export type UserWhereUniqueInput = Prisma.AtLeast<{
 
 export type UserOrderByWithAggregationInput = {
   id?: Prisma.SortOrder
-  email?: Prisma.SortOrder
+  email?: Prisma.SortOrderInput | Prisma.SortOrder
   name?: Prisma.SortOrderInput | Prisma.SortOrder
   savingPercentBps?: Prisma.SortOrder
   withdrawalDelaySeconds?: Prisma.SortOrder
@@ -297,7 +297,7 @@ export type UserScalarWhereWithAggregatesInput = {
   OR?: Prisma.UserScalarWhereWithAggregatesInput[]
   NOT?: Prisma.UserScalarWhereWithAggregatesInput | Prisma.UserScalarWhereWithAggregatesInput[]
   id?: Prisma.IntWithAggregatesFilter<"User"> | number
-  email?: Prisma.StringWithAggregatesFilter<"User"> | string
+  email?: Prisma.StringNullableWithAggregatesFilter<"User"> | string | null
   name?: Prisma.StringNullableWithAggregatesFilter<"User"> | string | null
   savingPercentBps?: Prisma.IntWithAggregatesFilter<"User"> | number
   withdrawalDelaySeconds?: Prisma.IntWithAggregatesFilter<"User"> | number
@@ -306,7 +306,7 @@ export type UserScalarWhereWithAggregatesInput = {
 }
 
 export type UserCreateInput = {
-  email: string
+  email?: string | null
   name?: string | null
   savingPercentBps?: number
   withdrawalDelaySeconds?: number
@@ -320,7 +320,7 @@ export type UserCreateInput = {
 
 export type UserUncheckedCreateInput = {
   id?: number
-  email: string
+  email?: string | null
   name?: string | null
   savingPercentBps?: number
   withdrawalDelaySeconds?: number
@@ -333,7 +333,7 @@ export type UserUncheckedCreateInput = {
 }
 
 export type UserUpdateInput = {
-  email?: Prisma.StringFieldUpdateOperationsInput | string
+  email?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   name?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   savingPercentBps?: Prisma.IntFieldUpdateOperationsInput | number
   withdrawalDelaySeconds?: Prisma.IntFieldUpdateOperationsInput | number
@@ -347,7 +347,7 @@ export type UserUpdateInput = {
 
 export type UserUncheckedUpdateInput = {
   id?: Prisma.IntFieldUpdateOperationsInput | number
-  email?: Prisma.StringFieldUpdateOperationsInput | string
+  email?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   name?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   savingPercentBps?: Prisma.IntFieldUpdateOperationsInput | number
   withdrawalDelaySeconds?: Prisma.IntFieldUpdateOperationsInput | number
@@ -361,7 +361,7 @@ export type UserUncheckedUpdateInput = {
 
 export type UserCreateManyInput = {
   id?: number
-  email: string
+  email?: string | null
   name?: string | null
   savingPercentBps?: number
   withdrawalDelaySeconds?: number
@@ -370,7 +370,7 @@ export type UserCreateManyInput = {
 }
 
 export type UserUpdateManyMutationInput = {
-  email?: Prisma.StringFieldUpdateOperationsInput | string
+  email?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   name?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   savingPercentBps?: Prisma.IntFieldUpdateOperationsInput | number
   withdrawalDelaySeconds?: Prisma.IntFieldUpdateOperationsInput | number
@@ -380,7 +380,7 @@ export type UserUpdateManyMutationInput = {
 
 export type UserUncheckedUpdateManyInput = {
   id?: Prisma.IntFieldUpdateOperationsInput | number
-  email?: Prisma.StringFieldUpdateOperationsInput | string
+  email?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   name?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   savingPercentBps?: Prisma.IntFieldUpdateOperationsInput | number
   withdrawalDelaySeconds?: Prisma.IntFieldUpdateOperationsInput | number
@@ -433,10 +433,6 @@ export type UserSumOrderByAggregateInput = {
 export type UserScalarRelationFilter = {
   is?: Prisma.UserWhereInput
   isNot?: Prisma.UserWhereInput
-}
-
-export type StringFieldUpdateOperationsInput = {
-  set?: string
 }
 
 export type NullableStringFieldUpdateOperationsInput = {
@@ -512,7 +508,7 @@ export type UserUpdateOneRequiredWithoutWithdrawalsNestedInput = {
 }
 
 export type UserCreateWithoutWalletsInput = {
-  email: string
+  email?: string | null
   name?: string | null
   savingPercentBps?: number
   withdrawalDelaySeconds?: number
@@ -525,7 +521,7 @@ export type UserCreateWithoutWalletsInput = {
 
 export type UserUncheckedCreateWithoutWalletsInput = {
   id?: number
-  email: string
+  email?: string | null
   name?: string | null
   savingPercentBps?: number
   withdrawalDelaySeconds?: number
@@ -553,7 +549,7 @@ export type UserUpdateToOneWithWhereWithoutWalletsInput = {
 }
 
 export type UserUpdateWithoutWalletsInput = {
-  email?: Prisma.StringFieldUpdateOperationsInput | string
+  email?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   name?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   savingPercentBps?: Prisma.IntFieldUpdateOperationsInput | number
   withdrawalDelaySeconds?: Prisma.IntFieldUpdateOperationsInput | number
@@ -566,7 +562,7 @@ export type UserUpdateWithoutWalletsInput = {
 
 export type UserUncheckedUpdateWithoutWalletsInput = {
   id?: Prisma.IntFieldUpdateOperationsInput | number
-  email?: Prisma.StringFieldUpdateOperationsInput | string
+  email?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   name?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   savingPercentBps?: Prisma.IntFieldUpdateOperationsInput | number
   withdrawalDelaySeconds?: Prisma.IntFieldUpdateOperationsInput | number
@@ -578,7 +574,7 @@ export type UserUncheckedUpdateWithoutWalletsInput = {
 }
 
 export type UserCreateWithoutTransactionsInput = {
-  email: string
+  email?: string | null
   name?: string | null
   savingPercentBps?: number
   withdrawalDelaySeconds?: number
@@ -591,7 +587,7 @@ export type UserCreateWithoutTransactionsInput = {
 
 export type UserUncheckedCreateWithoutTransactionsInput = {
   id?: number
-  email: string
+  email?: string | null
   name?: string | null
   savingPercentBps?: number
   withdrawalDelaySeconds?: number
@@ -619,7 +615,7 @@ export type UserUpdateToOneWithWhereWithoutTransactionsInput = {
 }
 
 export type UserUpdateWithoutTransactionsInput = {
-  email?: Prisma.StringFieldUpdateOperationsInput | string
+  email?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   name?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   savingPercentBps?: Prisma.IntFieldUpdateOperationsInput | number
   withdrawalDelaySeconds?: Prisma.IntFieldUpdateOperationsInput | number
@@ -632,7 +628,7 @@ export type UserUpdateWithoutTransactionsInput = {
 
 export type UserUncheckedUpdateWithoutTransactionsInput = {
   id?: Prisma.IntFieldUpdateOperationsInput | number
-  email?: Prisma.StringFieldUpdateOperationsInput | string
+  email?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   name?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   savingPercentBps?: Prisma.IntFieldUpdateOperationsInput | number
   withdrawalDelaySeconds?: Prisma.IntFieldUpdateOperationsInput | number
@@ -644,7 +640,7 @@ export type UserUncheckedUpdateWithoutTransactionsInput = {
 }
 
 export type UserCreateWithoutLedgerEntriesInput = {
-  email: string
+  email?: string | null
   name?: string | null
   savingPercentBps?: number
   withdrawalDelaySeconds?: number
@@ -657,7 +653,7 @@ export type UserCreateWithoutLedgerEntriesInput = {
 
 export type UserUncheckedCreateWithoutLedgerEntriesInput = {
   id?: number
-  email: string
+  email?: string | null
   name?: string | null
   savingPercentBps?: number
   withdrawalDelaySeconds?: number
@@ -685,7 +681,7 @@ export type UserUpdateToOneWithWhereWithoutLedgerEntriesInput = {
 }
 
 export type UserUpdateWithoutLedgerEntriesInput = {
-  email?: Prisma.StringFieldUpdateOperationsInput | string
+  email?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   name?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   savingPercentBps?: Prisma.IntFieldUpdateOperationsInput | number
   withdrawalDelaySeconds?: Prisma.IntFieldUpdateOperationsInput | number
@@ -698,7 +694,7 @@ export type UserUpdateWithoutLedgerEntriesInput = {
 
 export type UserUncheckedUpdateWithoutLedgerEntriesInput = {
   id?: Prisma.IntFieldUpdateOperationsInput | number
-  email?: Prisma.StringFieldUpdateOperationsInput | string
+  email?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   name?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   savingPercentBps?: Prisma.IntFieldUpdateOperationsInput | number
   withdrawalDelaySeconds?: Prisma.IntFieldUpdateOperationsInput | number
@@ -710,7 +706,7 @@ export type UserUncheckedUpdateWithoutLedgerEntriesInput = {
 }
 
 export type UserCreateWithoutWithdrawalsInput = {
-  email: string
+  email?: string | null
   name?: string | null
   savingPercentBps?: number
   withdrawalDelaySeconds?: number
@@ -723,7 +719,7 @@ export type UserCreateWithoutWithdrawalsInput = {
 
 export type UserUncheckedCreateWithoutWithdrawalsInput = {
   id?: number
-  email: string
+  email?: string | null
   name?: string | null
   savingPercentBps?: number
   withdrawalDelaySeconds?: number
@@ -751,7 +747,7 @@ export type UserUpdateToOneWithWhereWithoutWithdrawalsInput = {
 }
 
 export type UserUpdateWithoutWithdrawalsInput = {
-  email?: Prisma.StringFieldUpdateOperationsInput | string
+  email?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   name?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   savingPercentBps?: Prisma.IntFieldUpdateOperationsInput | number
   withdrawalDelaySeconds?: Prisma.IntFieldUpdateOperationsInput | number
@@ -764,7 +760,7 @@ export type UserUpdateWithoutWithdrawalsInput = {
 
 export type UserUncheckedUpdateWithoutWithdrawalsInput = {
   id?: Prisma.IntFieldUpdateOperationsInput | number
-  email?: Prisma.StringFieldUpdateOperationsInput | string
+  email?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   name?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   savingPercentBps?: Prisma.IntFieldUpdateOperationsInput | number
   withdrawalDelaySeconds?: Prisma.IntFieldUpdateOperationsInput | number
@@ -899,7 +895,7 @@ export type $UserPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs =
   }
   scalars: runtime.Types.Extensions.GetPayloadResult<{
     id: number
-    email: string
+    email: string | null
     name: string | null
     savingPercentBps: number
     withdrawalDelaySeconds: number

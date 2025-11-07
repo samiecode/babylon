@@ -526,6 +526,10 @@ export type WalletUncheckedUpdateManyWithoutUserNestedInput = {
   deleteMany?: Prisma.WalletScalarWhereInput | Prisma.WalletScalarWhereInput[]
 }
 
+export type StringFieldUpdateOperationsInput = {
+  set?: string
+}
+
 export type BoolFieldUpdateOperationsInput = {
   set?: boolean
 }

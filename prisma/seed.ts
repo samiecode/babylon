@@ -43,54 +43,54 @@ const walletSeeds: Array<{
 ];
 
 export async function main() {
-	console.log("Seeding users...");
-	for (const u of userData) {
-		await prisma.user.upsert({
-			where: {email: u.email},
-			update: {},
-			create: u,
-		});
-	}
+	// console.log("Seeding users...");
+	// for (const u of userData) {
+	// 	await prisma.user.upsert({
+	// 		where: {email: u.email},
+	// 		update: {},
+	// 		create: u,
+	// 	});
+	// }
 
-	console.log("Seeding wallets...");
-	for (const seed of walletSeeds) {
-		const user = await prisma.user.findUnique({
-			where: {email: seed.email},
-		});
+	// console.log("Seeding wallets...");
+	// for (const seed of walletSeeds) {
+	// 	const user = await prisma.user.findUnique({
+	// 		where: {email: seed.email},
+	// 	});
 
-		if (!user) {
-			continue;
-		}
+	// 	if (!user) {
+	// 		continue;
+	// 	}
 
-		await prisma.user.update({
-			where: {id: user.id},
-			data: {
-				savingPercentBps:
-					seed.savingPercentBps ?? user.savingPercentBps ?? 0,
-				withdrawalDelaySeconds:
-					seed.withdrawalDelaySeconds ?? user.withdrawalDelaySeconds ?? 86_400,
-			},
-		});
+	// 	await prisma.user.update({
+	// 		where: {id: user.id},
+	// 		data: {
+	// 			savingPercentBps:
+	// 				seed.savingPercentBps ?? user.savingPercentBps ?? 0,
+	// 			withdrawalDelaySeconds:
+	// 				seed.withdrawalDelaySeconds ?? user.withdrawalDelaySeconds ?? 86_400,
+	// 		},
+	// 	});
 
-		await prisma.wallet.upsert({
-			where: {address: seed.address.toLowerCase()},
-			update: {
-				label: seed.label,
-				chainId: seed.chainId ?? 1,
-				isActive: seed.isActive ?? true,
-				userId: user.id,
-			},
-			create: {
-				address: seed.address.toLowerCase(),
-				label: seed.label,
-				chainId: seed.chainId ?? 1,
-				isActive: seed.isActive ?? true,
-				user: {connect: {id: user.id}},
-			},
-		});
-	}
+	// 	await prisma.wallet.upsert({
+	// 		where: {address: seed.address.toLowerCase()},
+	// 		update: {
+	// 			label: seed.label,
+	// 			chainId: seed.chainId ?? 1,
+	// 			isActive: seed.isActive ?? true,
+	// 			userId: user.id,
+	// 		},
+	// 		create: {
+	// 			address: seed.address.toLowerCase(),
+	// 			label: seed.label,
+	// 			chainId: seed.chainId ?? 1,
+	// 			isActive: seed.isActive ?? true,
+	// 			user: {connect: {id: user.id}},
+	// 		},
+	// 	});
+	// }
 
-	console.log("Seeding complete!");
+	// console.log("Seeding complete!");
 }
 
 main()

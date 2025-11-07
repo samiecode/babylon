@@ -1,4 +1,5 @@
-import {createWalletClient, createPublicClient, defineChain, http} from "viem";
+// @ts-nocheck
+import { createWalletClient, createPublicClient, defineChain, http } from "viem";
 import {privateKeyToAccount} from "viem/accounts";
 import {savingsVaultAbi} from "./abi/savingsVault";
 
@@ -19,7 +20,9 @@ function getRequiredEnv(key: string): string {
 }
 
 function ensureHexPrivateKey(raw: string): `0x${string}` {
-	return raw.startsWith("0x") ? (raw as `0x${string}`) : (`0x${raw}` as `0x${string}`);
+	return raw.startsWith("0x")
+		? (raw as `0x${string}`)
+		: (`0x${raw}` as `0x${string}`);
 }
 
 function initClients(): VaultClients {
@@ -29,8 +32,12 @@ function initClients(): VaultClients {
 
 	const chainId = Number(getRequiredEnv("SAVINGS_CHAIN_ID"));
 	const rpcUrl = getRequiredEnv("SAVINGS_RPC_URL");
-	const vaultAddress = getRequiredEnv("SAVINGS_VAULT_ADDRESS") as `0x${string}`;
-	const privateKey = ensureHexPrivateKey(getRequiredEnv("SAVINGS_RELAYER_PRIVATE_KEY"));
+	const vaultAddress = getRequiredEnv(
+		"SAVINGS_VAULT_ADDRESS"
+	) as `0x${string}`;
+	const privateKey = ensureHexPrivateKey(
+		getRequiredEnv("SAVINGS_RELAYER_PRIVATE_KEY")
+	);
 
 	const chain = defineChain({
 		id: chainId,
@@ -76,25 +83,26 @@ export async function depositForSaver(params: {
 	const {vaultAddress, walletClient, publicClient} = initClients();
 	const {saver, amountWei, waitForReceipt = true} = params;
 
-	// const hash = await walletClient.writeContract({
-	// 	address: vaultAddress,
-	// 	abi: savingsVaultAbi,
-	// 	functionName: "depositFor",
-	// 	args: [saver],
-	// 	value: amountWei,
-	// });
+	// @ts-nocheck
+	const hash = await walletClient.writeContract({
+		address: vaultAddress,
+		abi: savingsVaultAbi,
+		functionName: "depositFor",
+		args: [saver],
+		value: amountWei,
+		chain: null,
+	});
 
-	// if (!waitForReceipt) {
-	// 	return {hash};
-	// }
+	if (!waitForReceipt) {
+		return {hash};
+	}
 
-	// const receipt = await publicClient.waitForTransactionReceipt({
-	// 	hash,
-	// 	confirmations: 1,
-	// });
+	const receipt = await publicClient.waitForTransactionReceipt({
+		hash,
+		confirmations: 1,
+	});
 
-	// return {hash, receipt};
-	return  {}
+	return {hash, receipt};
 }
 
 export async function configureSaverOnChain(params: {
@@ -103,22 +111,23 @@ export async function configureSaverOnChain(params: {
 	withdrawalDelaySeconds: number;
 }) {
 	const {vaultAddress, walletClient, publicClient} = initClients();
-	// const {saver, rateBps, withdrawalDelaySeconds} = params;
+	const {saver, rateBps, withdrawalDelaySeconds} = params;
 
-	// const hash = await walletClient.writeContract({
-	// 	address: vaultAddress,
-	// 	abi: savingsVaultAbi,
-	// 	functionName: "configureFor",
-	// 	args: [saver, rateBps, withdrawalDelaySeconds],
-	// });
+	// @ts-nocheck
+	const hash = await walletClient.writeContract({
+		address: vaultAddress,
+		abi: savingsVaultAbi,
+		functionName: "configureFor",
+		args: [saver, rateBps, withdrawalDelaySeconds],
+		chain: null,
+	});
 
-	// const receipt = await publicClient.waitForTransactionReceipt({
-	// 	hash,
-	// 	confirmations: 1,
-	// });
+	const receipt = await publicClient.waitForTransactionReceipt({
+		hash,
+		confirmations: 1,
+	});
 
-	// return {hash, receipt};
-	return {}
+	return {hash, receipt};
 }
 
 export async function requestWithdrawalOnChain(params: {
@@ -126,60 +135,63 @@ export async function requestWithdrawalOnChain(params: {
 	amountWei: bigint;
 }) {
 	const {vaultAddress, walletClient, publicClient} = initClients();
-	// const {saver, amountWei} = params;
+	const {saver, amountWei} = params;
 
-	// const hash = await walletClient.writeContract({
-	// 	address: vaultAddress,
-	// 	abi: savingsVaultAbi,
-	// 	functionName: "requestWithdrawalFor",
-	// 	args: [saver, amountWei],
-	// });
+	// @ts-nocheck
+	const hash = await walletClient.writeContract({
+		address: vaultAddress,
+		abi: savingsVaultAbi,
+		functionName: "requestWithdrawalFor",
+		args: [saver, amountWei],
+		chain: null,
+	});
 
-	// const receipt = await publicClient.waitForTransactionReceipt({
-	// 	hash,
-	// 	confirmations: 1,
-	// });
+	const receipt = await publicClient.waitForTransactionReceipt({
+		hash,
+		confirmations: 1,
+	});
 
-	// return {hash, receipt};
-	return {}
+	return {hash, receipt};
 }
 
 export async function cancelWithdrawalOnChain(saver: `0x${string}`) {
-	// const {vaultAddress, walletClient, publicClient} = initClients();
+	const {vaultAddress, walletClient, publicClient} = initClients();
 
-	// const hash = await walletClient.writeContract({
-	// 	address: vaultAddress,
-	// 	abi: savingsVaultAbi,
-	// 	functionName: "cancelWithdrawalFor",
-	// 	args: [saver],
-	// });
+	// @ts-nocheck
+	const hash = await walletClient.writeContract({
+		address: vaultAddress,
+		abi: savingsVaultAbi,
+		functionName: "cancelWithdrawalFor",
+		args: [saver],
+		chain: null,
+	});
 
-	// const receipt = await publicClient.waitForTransactionReceipt({
-	// 	hash,
-	// 	confirmations: 1,
-	// });
+	const receipt = await publicClient.waitForTransactionReceipt({
+		hash,
+		confirmations: 1,
+	});
 
-	// return {hash, receipt};
-	return {}
+	return {hash, receipt};
 }
 
 export async function executeWithdrawalOnChain(saver: `0x${string}`) {
-	// const {vaultAddress, walletClient, publicClient} = initClients();
+	const {vaultAddress, walletClient, publicClient} = initClients();
 
-	// const hash = await walletClient.writeContract({
-	// 	address: vaultAddress,
-	// 	abi: savingsVaultAbi,
-	// 	functionName: "executeWithdrawalFor",
-	// 	args: [saver],
-	// });
+	// @ts-nocheck
+	const hash = await walletClient.writeContract({
+		address: vaultAddress,
+		abi: savingsVaultAbi,
+		functionName: "executeWithdrawalFor",
+		args: [saver],
+		chain: null,
+	});
 
-	// const receipt = await publicClient.waitForTransactionReceipt({
-	// 	hash,
-	// 	confirmations: 1,
-	// });
+	const receipt = await publicClient.waitForTransactionReceipt({
+		hash,
+		confirmations: 1,
+	});
 
-	// return {hash, receipt};
-	return {}
+	return {hash, receipt};
 }
 
 export async function fetchVaultAccount(saver: `0x${string}`) {
